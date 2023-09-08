@@ -7,6 +7,7 @@ use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
+
 class SendNewsLetter extends Command
 {
     /**
@@ -14,7 +15,7 @@ class SendNewsLetter extends Command
      *
      * @var string
      */
-    protected $signature = 'user:send-newsletter {user}';
+    protected $signature = 'users:send-newsletter';
 
     /**
      * The console command description.
@@ -28,10 +29,22 @@ class SendNewsLetter extends Command
      */
     public function handle()
     {
-        $user = User::find($this->argument('user')) ;
-        $message = Notification::first();
-        Mail::to($user->email)
-            ->send(new NotificationShipped($message));
-        $this->info('Enviado');
+        $notification = Notification::where('title', 'Nueva actualización del sistema')->first();
+
+        if (!$notification) {
+            $this->error('No se encontró la notificación.');
+            return;
+        }
+        for ($i = 0; $i < 5; $i++) {
+            $users = User::where('email_sent', false)
+                ->take(100)
+                ->get();
+
+            foreach ($users as $user) {
+                Mail::to($user->email)->send(new NotificationShipped($notification));
+                $user->update(['email_sent' => true]);
+            }
+            $this->info('Correo promocional enviado a ' . count($users) . ' usuarios.');
+        }
     }
 }
